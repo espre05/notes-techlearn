@@ -1,0 +1,58 @@
+kubernates - multipath
+
+Ref: https://ubuntu.com/blog/kubernetes-on-mac-how-to-set-up
+
+#createvm
+multipass launch --name kubevm --mem 4G --disk 40G
+#install kube
+multipass exec kubevm -- sudo snap install microk8s --classic     
+multipass exec kubevm -- sudo iptables -P FORWARD ACCEPT 
+
+
+#check if ready
+multipass list
+#Name                    State             IPv4             Image
+
+#kubevm                  Running           192.168.64.4     Ubuntu 18.04 LTS
+
+
+
+#shell try
+
+multipass shell kubevm
+sudo usermod -a -G microk8s multipass
+exit
+#status without shell
+multipass exec kubevm -- /snap/bin/microk8s.config   > multipass_kubeconfig.yaml
+#NAMESPACE   NAME                 TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+
+#default     service/kubernetes   ClusterIP   10.152.183.1   <none>        443/TCP   13m
+
+
+multipass exec kubevm -- /snap/bin/microk8s.enable dns dashboard
+multipass exec kubevm -- /snap/bin/microk8s.kubectl get all --all-namespaces 
+multipass exec kubevm -- /snap/bin/microk8s.kubectl cluster-info 
+ML02:~ pro$ multipass exec kubevm -- /snap/bin/microk8s.kubectl cluster-info 
+
+
+Kubernetes master is running at https://127.0.0.1:16443
+
+
+multipass exec kubevm -- /snap/bin/microk8s.kubectl proxy --address='0.0.0.0' --accept-hosts='.*'
+
+https://192.168.64.4:8001/api/v1/namespaces/kube-system/services/monitoring-grafana/proxy
+
+multipass exec kubevm -- cat /var/snap/microk8s/current/credentials/basic_auth.csv
+
+http://127.0.0.1:8001/api/v1/namespaces/kube-system/services/monitoring-grafana/proxy/profile
+http://127.0.0.1:8001/api/v1/namespaces/kube-system/services/kubernetes-dashboard
+
+%%%% install kubernates dashboard, and get bearer token ######
+
+Deploy dashboard ui: https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml
+
+Bearer token find: https://github.com/kubernetes/dashboard/blob/master/docs/user/access-control/creating-sample-user.md
+kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}')
+Access dashoard locally after "kubectl proxy” : http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/node?namespace=_all
+
